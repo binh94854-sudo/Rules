@@ -1,14 +1,19 @@
 {
   "name": "discord-rules-bot",
   "version": "1.0.0",
+  "description": "Discord Rules Bot chạy bằng discord.js và interactions endpoint",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "server": "node server.js"
   },
   "dependencies": {
-    "discord.js": "^14.15.3",
+    "discord.js": "^14.16.3",
     "discord-interactions": "^3.4.0",
-    "express": "^4.21.1",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1"
+  },
+  "engines": {
+    "node": ">=18.x"
   }
 }
