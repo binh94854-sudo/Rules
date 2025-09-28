@@ -4,8 +4,8 @@
   "description": "Discord Rules Bot chạy bằng discord.js và interactions endpoint",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",   // 👈 chạy server.js khi npm start (Render)
-    "menu": "node index.js"      // 👈 chạy index.js thủ công khi bạn muốn gửi menu
+    "start": "node server.js",
+    "menu": "node index.js"
   },
   "dependencies": {
     "discord.js": "^14.16.3",
@@ -14,6 +14,6 @@
     "express": "^4.21.1"
   },
   "engines": {
-    "node": ">=18.x"
+    "node": "18.x"
   }
 }
