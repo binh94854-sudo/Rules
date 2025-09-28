@@ -1,14 +1,14 @@
 {
-  "name": "discord-bot",
+  "name": "discord-rules-bot",
   "version": "1.0.0",
-  "description": "Simple Discord Bot",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
     "discord.js": "^14.15.3",
-    "dotenv": "^16.3.1",
-    "express": "^4.18.2"
+    "discord-interactions": "^3.4.0",
+    "express": "^4.21.1",
+    "dotenv": "^16.4.5"
   }
 }
