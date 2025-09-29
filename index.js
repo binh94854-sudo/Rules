@@ -1,4 +1,4 @@
-// ====== Discord Bot ======
+// ====== Discord Bot Full ======
 const {
   Client,
   GatewayIntentBits,
@@ -9,20 +9,49 @@ const {
 } = require("discord.js");
 require("dotenv").config();
 
-// Khởi tạo bot client
+// ==== CONFIG ====
+const TOKEN = process.env.TOKEN;
+const CATEGORY_ID = "1411034825699233943"; // ID danh mục cần theo dõi
+const RULE_CHANNEL_ID = process.env.CHANNEL_ID; // ID kênh rules menu
+
+// ==== CLIENT ====
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.GuildVoiceStates],
   partials: [Partials.Channel],
 });
 
-// Khi bot online
+// ==== AUTO RENAME CHANNEL ====
+async function renameChannel(channel) {
+  if (channel.parentId !== CATEGORY_ID) return; // chỉ đổi trong category chỉ định
+  if (!channel.name.endsWith("-webhook")) return;
+
+  const username = channel.name.replace("-webhook", "");
+  const newName = `🕹★】${username} Macro`;
+
+  if (channel.name !== newName) {
+    try {
+      await channel.setName(newName);
+      console.log(`✅ Đã đổi tên kênh: ${channel.name} → ${newName}`);
+    } catch (err) {
+      console.error(`❌ Không đổi được tên kênh ${channel.id}:`, err);
+    }
+  }
+}
+
+// ==== EVENT: BOT READY ====
 client.once("ready", async () => {
   console.log(`✅ Bot đã đăng nhập: ${client.user.tag}`);
 
-  const channel = await client.channels.fetch(process.env.CHANNEL_ID);
-  if (!channel) return console.log("❌ Không tìm thấy kênh");
+  // Quét toàn bộ channel trong category khi bot khởi động
+  client.channels.cache
+    .filter((ch) => ch.parentId === CATEGORY_ID)
+    .forEach((ch) => renameChannel(ch));
 
-  // Kiểm tra xem menu đã được gửi chưa (để không gửi nhiều lần khi restart)
+  // ====== MENU RULES ======
+  const channel = await client.channels.fetch(RULE_CHANNEL_ID);
+  if (!channel) return console.log("❌ Không tìm thấy kênh rules");
+
+  // Kiểm tra menu rules đã gửi chưa
   const messages = await channel.messages.fetch({ limit: 50 });
   const alreadySent = messages.find(
     (m) =>
@@ -50,7 +79,6 @@ client.once("ready", async () => {
 
   const row = new ActionRowBuilder().addComponents(menu);
 
-  // Gửi link tới tin nhắn rules gốc + menu
   await channel.send({
     content: "📜 **Server Rules are pinned here:**\n<https://discord.com/channels/1410980858583715970/1410980859028308074/1420064482427801640>",
     components: [row],
@@ -59,7 +87,14 @@ client.once("ready", async () => {
   console.log("✅ Đã gửi menu rules mới.");
 });
 
-// Xử lý khi user chọn menu
+// ==== EVENT: CHANNEL CREATE ====
+client.on("channelCreate", async (channel) => {
+  if (channel.parentId === CATEGORY_ID) {
+    renameChannel(channel);
+  }
+});
+
+// ==== EVENT: INTERACTION MENU ====
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isStringSelectMenu()) return;
   if (interaction.customId !== "rules_menu") return;
@@ -140,8 +175,8 @@ client.on("interactionCreate", async (interaction) => {
   await interaction.reply({ embeds: [embed], ephemeral: true });
 });
 
-// Login bot
-client.login(process.env.TOKEN);
+// ==== LOGIN BOT ====
+client.login(TOKEN);
 
 // ====== Express server (cho uptime) ======
 const express = require("express");
