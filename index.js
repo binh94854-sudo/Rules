@@ -1,4 +1,4 @@
-// ====== Discord Bot Full ======
+// ====== Discord Bot ======
 const {
   Client,
   GatewayIntentBits,
@@ -8,50 +8,50 @@ const {
   Partials,
 } = require("discord.js");
 require("dotenv").config();
+const express = require("express");
 
 // ==== CONFIG ====
 const TOKEN = process.env.TOKEN;
-const CATEGORY_ID = "1411034825699233943"; // ID danh mục cần theo dõi
-const RULE_CHANNEL_ID = process.env.CHANNEL_ID; // ID kênh rules menu
+const CATEGORY_ID = "1411034825699233943"; // ID danh mục cần rename channel
+const RULES_CHANNEL_ID = process.env.CHANNEL_ID; // kênh gửi menu rules
 
 // ==== CLIENT ====
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.GuildVoiceStates],
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
   partials: [Partials.Channel],
 });
 
-// ==== AUTO RENAME CHANNEL ====
+// ==== Hàm đổi tên channel ====
 async function renameChannel(channel) {
-  if (channel.parentId !== CATEGORY_ID) return; // chỉ đổi trong category chỉ định
+  if (channel.parentId !== CATEGORY_ID) return;
   if (!channel.name.endsWith("-webhook")) return;
 
   const username = channel.name.replace("-webhook", "");
-  const newName = `🕹★】${username} Macro`;
+  const newName = `🛠★】${username}-macro`;
 
   if (channel.name !== newName) {
     try {
       await channel.setName(newName);
-      console.log(`✅ Đã đổi tên kênh: ${channel.name} → ${newName}`);
+      console.log(`✅ Đã đổi tên: ${channel.name} → ${newName}`);
     } catch (err) {
-      console.error(`❌ Không đổi được tên kênh ${channel.id}:`, err);
+      console.error(`❌ Lỗi đổi tên ${channel.id}:`, err);
     }
   }
 }
 
-// ==== EVENT: BOT READY ====
+// ==== READY ====
 client.once("ready", async () => {
   console.log(`✅ Bot đã đăng nhập: ${client.user.tag}`);
 
-  // Quét toàn bộ channel trong category khi bot khởi động
+  // Quét toàn bộ channel trong category khi bot bật
   client.channels.cache
     .filter((ch) => ch.parentId === CATEGORY_ID)
     .forEach((ch) => renameChannel(ch));
 
-  // ====== MENU RULES ======
-  const channel = await client.channels.fetch(RULE_CHANNEL_ID);
+  // Gửi menu rules nếu chưa có
+  const channel = await client.channels.fetch(RULES_CHANNEL_ID);
   if (!channel) return console.log("❌ Không tìm thấy kênh rules");
 
-  // Kiểm tra menu rules đã gửi chưa
   const messages = await channel.messages.fetch({ limit: 50 });
   const alreadySent = messages.find(
     (m) =>
@@ -65,7 +65,6 @@ client.once("ready", async () => {
     return;
   }
 
-  // Tạo menu chọn
   const menu = new StringSelectMenuBuilder()
     .setCustomId("rules_menu")
     .setPlaceholder("Select rules you would like to see")
@@ -87,14 +86,14 @@ client.once("ready", async () => {
   console.log("✅ Đã gửi menu rules mới.");
 });
 
-// ==== EVENT: CHANNEL CREATE ====
+// ==== Khi có channel mới tạo ====
 client.on("channelCreate", async (channel) => {
   if (channel.parentId === CATEGORY_ID) {
     renameChannel(channel);
   }
 });
 
-// ==== EVENT: INTERACTION MENU ====
+// ==== Interaction chọn menu ====
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isStringSelectMenu()) return;
   if (interaction.customId !== "rules_menu") return;
@@ -105,9 +104,9 @@ client.on("interactionCreate", async (interaction) => {
       embed = new EmbedBuilder()
         .setTitle(" **1 Warning Rules**")
         .setDescription(
-          `*Flooding/Spamming*\nDescription: Messages that occupy a large portion of the screen or involve the excessive posting of irrelevant content.\n*Exceptions:* Informative messages\n(Additional 1 Hour mute)\n\n
- *Excessive Begging*\nDescription: Repeatedly asking for favors, items, roles, privileges, or other benefits in an annoying or disruptive manner.\n*Exceptions:* Jokingly begging\n\n
- *XP Farming*\nDescription: Sending messages solely to gain XP in the Arcane bot and disrupting the chat, while also being unfair to the legitimate users.\n(Additional 1 Hour mute)\n1st Offense = reminder\n2nd Offense = Reduce XP\n3rd Offense = Level Reset`
+          `*Flooding/Spamming*\nDescription: Messages that occupy a large portion of the screen or involve excessive posting of irrelevant content.\n*Exceptions:* Informative messages\n(Additional 1 Hour mute)\n\n
+*Excessive Begging*\nDescription: Repeatedly asking for favors, items, roles, or other benefits disruptively.\n*Exceptions:* Jokingly begging\n\n
+*XP Farming*\nDescription: Sending messages solely to gain XP (Arcane bot).\nPunishments:\n1st Offense = reminder\n2nd Offense = Reduce XP\n3rd Offense = Level Reset`
         )
         .setImage("https://cdn.discordapp.com/attachments/1358092861303947485/1358860213138096199/IMG_2287.png")
         .setColor("#ffffcc");
@@ -117,11 +116,11 @@ client.on("interactionCreate", async (interaction) => {
       embed = new EmbedBuilder()
         .setTitle(" **Channel Misuses**")
         .setDescription(
-          `Channel misuses fall under the 1 Warning Rules category, meaning any kind of misuse will result in 1 warning. And possibly a blacklist.\n\n
- **Chatting Channel Misuse**\nDescription: Using the chatting channels for purposes other than chatting\nIncludes: Bot commands outside of the Bots channel.\n\n
- **Macro Channels Misuse**\nDescription: using channels in the macro category incorrectly.\n*1x Warn:* Reminder\n*2x Warn:* 1 Day Macro Channels Blacklist\n*3x Warn:* 1 Week Macro Channels Blacklist\n\n
- **Community Channels Misuse**\nDescription: Using the channels in the Community section for inappropriate purposes.\n*1x Warn:* Reminder\n*2x Warn:* 1 Day Misuse Channel Blacklist\n*3x Warn:* 1 Week Misuse Channel Blacklist\n\n
- **Voice Channel Misuse**\nDescription: Misusing / improperly utilizing the voice channels\n(Additional 1h Mute)`
+          `Channel misuses fall under the 1 Warning Rules category.\n\n
+**Chatting Channel Misuse**\nUsing chat channels for non-chat purposes (e.g. bot commands outside Bots channel).\n\n
+**Macro Channels Misuse**\nUsing macro category channels incorrectly.\nPunishments:\n1 Warn = Reminder\n2 Warn = 1 Day Blacklist\n3 Warn = 1 Week Blacklist\n\n
+**Community Channels Misuse**\nUsing community section for inappropriate purposes.\nPunishments similar to above.\n\n
+**Voice Channel Misuse**\nImproperly using voice channels (Additional 1h Mute)`
         )
         .setImage("https://cdn.discordapp.com/attachments/1358092861303947485/1359923248946483382/Channel_Misuse.png")
         .setColor("#7fe390");
@@ -131,13 +130,13 @@ client.on("interactionCreate", async (interaction) => {
       embed = new EmbedBuilder()
         .setTitle(" **2 Warning Rules**")
         .setDescription(
-          `*Mod Bait*\nDescription: Sending messages that appear punishable to provoke a reaction, even though they do not violate rules.\n\n
- *Accusation w/o Evidence*\nDescription: Making statements or claims about an individual wrongfully and without evidence to put them in a compromised situation\nDepending on the severity, this can lead to a ban.\n\n
- *DM Harassment*\nDescription: Harassing members via DM's due to having mutual access to the Sol's RNG Communication server\n\n
- *Discrimination*\nDescription: Harmful stereotyping based on someone’s race, gender, sexuality, religion, or any other personal characteristics.\nDepending on the severity, extreme/severe cases can fall under “Hate Speech.”\n\n
- **Inappropriate/Suggestive Language**\nDescriptions: Implying/Referencing something inappropriate, offensive, or sexual.\nDepending on the severity, this can go up to 3 Warnings or fall into NSFW.\n\n
- **Toxicity**\nDescription: Engaging in disruptive behavior that can be seen as disrespectful or toxic in any way.\nExceptions: Harmless arguments, Disagreement about Sol’s RNG related topic, discussions, constructive criticism, debates, joking with consent\n\n
- **Advertising/Self Promotion**\nDescription: Promoting/Spreading one's media for self gain.\nExceptions: With permission`
+          `*Mod Bait*\nSending messages that appear punishable to provoke mods.\n\n
+*Accusation w/o Evidence*\nMaking wrongful claims without proof.\n\n
+*DM Harassment*\nHarassing members in DMs due to mutual server.\n\n
+*Discrimination*\nHarmful stereotyping (race, gender, religion...). Severe cases → Hate Speech.\n\n
+*Inappropriate/Suggestive Language*\nImplying sexual/offensive content.\n\n
+*Toxicity*\nDisruptive behavior without exceptions.\n\n
+*Advertising/Self Promotion*\nPromoting media for self-gain without permission.`
         )
         .setImage("https://cdn.discordapp.com/attachments/1358092861303947485/1358860209686057240/IMG_2288.png")
         .setColor("#f0954b");
@@ -147,10 +146,10 @@ client.on("interactionCreate", async (interaction) => {
       embed = new EmbedBuilder()
         .setTitle(" **3 Warning Rules**")
         .setDescription(
-          `**Mod Bait**\nDescription: Sending messages that appear punishable to provoke a reaction, even though they do not violate rules.\n\n
- **Accusation w/o Evidence**\nDescription: Making statements or claims about an individual wrongfully and without evidence to put them in a compromised situation\nDepending on the severity, this can lead to a ban.\n\n
- **DM Harassment**\nDescription: Harassing members via DM's due to having mutual access to the Sol's RNG Communication server\n\n
- **Discrimination**\nDescription: Harmful stereotyping based on someone’s race, gender, sexuality, religion, or any other personal characteristics.\nDepending on the severity of the discrimination, extreme/severe cases can fall under “Hate Speech.”`
+          `**Mod Bait**\nTrying to trick mods with borderline messages.\n\n
+**Accusation w/o Evidence**\nWrongful claims without evidence (severe = ban).\n\n
+**DM Harassment**\nHarassing users via DMs from mutual server.\n\n
+**Discrimination**\nExtreme harmful stereotyping (severe = Hate Speech).`
         )
         .setImage("https://cdn.discordapp.com/attachments/1358092861303947485/1358860210349019246/IMG_2289.png")
         .setColor("#f4363f");
@@ -160,12 +159,12 @@ client.on("interactionCreate", async (interaction) => {
       embed = new EmbedBuilder()
         .setTitle(" **Instant Ban Rules**")
         .setDescription(
-          `*Punishment Evading*\nDescription: Leaving to avoid any punishment of any kind.\n\n
- *NSFW*\nDescription: Content that is inappropriate for any professional or public place, usually including nudity or suggestiveness of any kind.\n\n
- *Hate Speech/Racism*\nDescription: Any form of imagery / discussions that promotes extreme discrimination and hatred against individuals or groups based on their characteristics\n\n
- *Child Endangerment*\nDescription: Any act that puts minors at harm or inappropriate exposure.\n\n
- *Cybercrimes*\nDescription: Any form of illegal activity online\n\n
- *Inappropriate Profile*\nDescription: Using an inappropriate Discord profile picture, Discord display name, or Roblox username that contains offensive, suggestive, or explicit content.\n*Punishments:* Kick. If rejoined and unchanged, Ban`
+          `*Punishment Evading*\nLeaving to avoid punishment.\n\n
+*NSFW*\nPosting inappropriate sexual/explicit content.\n\n
+*Hate Speech/Racism*\nPromoting extreme discrimination.\n\n
+*Child Endangerment*\nAny act harming minors.\n\n
+*Cybercrimes*\nIllegal activity online.\n\n
+*Inappropriate Profile*\nOffensive/suggestive profile. Punishment = Kick → Ban if unchanged.`
         )
         .setImage("https://cdn.discordapp.com/attachments/1358092861303947485/1358860210986287224/IMG_2290.png")
         .setColor("#f13bfe");
@@ -175,18 +174,11 @@ client.on("interactionCreate", async (interaction) => {
   await interaction.reply({ embeds: [embed], ephemeral: true });
 });
 
-// ==== LOGIN BOT ====
-client.login(TOKEN);
-
-// ====== Express server (cho uptime) ======
-const express = require("express");
+// ==== Express server (keep alive) ====
 const app = express();
 const port = process.env.PORT || 3000;
+app.get("/", (req, res) => res.send("✅ Bot is running!"));
+app.listen(port, () => console.log(`🌐 Web server online at port ${port}`));
 
-app.get("/", (req, res) => {
-  res.send("✅ Bot is running!");
-});
-
-app.listen(port, () => {
-  console.log(`🌐 Web server online at port ${port}`);
-});
+// ==== LOGIN ====
+client.login(TOKEN);
