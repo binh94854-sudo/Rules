@@ -6,7 +6,6 @@ const {
   ActionRowBuilder,
   StringSelectMenuBuilder,
   Partials,
-  PermissionsBitField,
 } = require("discord.js");
 require("dotenv").config();
 const express = require("express");
@@ -14,18 +13,14 @@ const rules = require("./rules"); // import rules object
 
 // ==== CONFIG ====
 const TOKEN = process.env.TOKEN;
-const CATEGORY_ID = process.env.CATEGORY_ID; 
-const RULES_CHANNEL_ID = process.env.RULES_CHANNEL_ID; 
-const ROLE_ID = process.env.ROLE_ID; 
+const CATEGORY_ID = process.env.CATEGORY_ID;
+const RULES_CHANNEL_ID = process.env.RULES_CHANNEL_ID;
+const ROLE_ID = process.env.ROLE_ID;
 const PORT = process.env.PORT || 3000;
 
 // ==== CLIENT ====
 const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-  ],
+  intents: [GatewayIntentBits.Guilds],
   partials: [Partials.Channel],
 });
 
@@ -68,54 +63,51 @@ client.once("ready", async () => {
       m.components[0].components[0].customId === "rules_menu"
   );
 
-  if (alreadySent) {
-    console.log("ℹ️ Menu rules đã tồn tại, không gửi lại.");
-    return;
+  if (!alreadySent) {
+    const menu = new StringSelectMenuBuilder()
+      .setCustomId("rules_menu")
+      .setPlaceholder("Select rules you would like to see")
+      .addOptions([
+        { label: "1 Warning Rules", value: "opt1", description: "Rule violations that will get you 1 warn.", emoji: "<:x1Warn:1416316742384357396>" },
+        { label: "Channel Misuses", value: "opt2", description: "Channel Misuse rules that will get you 1 warn.", emoji: "<:channelmisuse:1416316766312857610>" },
+        { label: "2 Warning Rules", value: "opt3", description: "Rule violations that will get you 2 warns.", emoji: "<:x2Warn:1416316781060161556>" },
+        { label: "3 Warning Rules", value: "opt4", description: "Rule violations that will get you 3 warns.", emoji: "<:x3Warn:1416316796029374464>" },
+        { label: "Instant Ban Rules", value: "opt5", description: "Rule violations that will get you a ban.", emoji: "<:instantban:1416316818297192510>" },
+      ]);
+
+    const row = new ActionRowBuilder().addComponents(menu);
+
+    await channel.send({
+      content: "📜 **Server Rules are pinned here:**\n<https://discord.com/channels/1410980858583715970/1410980859028308074/1420064482427801640>",
+      components: [row],
+    });
+
+    console.log("✅ Đã gửi menu rules mới.");
   }
-
-  const menu = new StringSelectMenuBuilder()
-    .setCustomId("rules_menu")
-    .setPlaceholder("Select rules you would like to see")
-    .addOptions([
-      { label: "1 Warning Rules", value: "opt1", description: "Rule violations that will get you 1 warn.", emoji: "<:x1Warn:1416316742384357396>" },
-      { label: "Channel Misuses", value: "opt2", description: "Channel Misuse rules that will get you 1 warn.", emoji: "<:channelmisuse:1416316766312857610>" },
-      { label: "2 Warning Rules", value: "opt3", description: "Rule violations that will get you 2 warns.", emoji: "<:x2Warn:1416316781060161556>" },
-      { label: "3 Warning Rules", value: "opt4", description: "Rule violations that will get you 3 warns.", emoji: "<:x3Warn:1416316796029374464>" },
-      { label: "Instant Ban Rules", value: "opt5", description: "Rule violations that will get you a ban.", emoji: "<:instantban:1416316818297192510>" },
-    ]);
-
-  const row = new ActionRowBuilder().addComponents(menu);
-
-  await channel.send({
-    content: "📜 **Server Rules are pinned here:**\n<https://discord.com/channels/1410980858583715970/1410980859028308074/1420064482427801640>",
-    components: [row],
-  });
-
-  console.log("✅ Đã gửi menu rules mới.");
 });
 
 // ==== Channel Create ====
 client.on("channelCreate", async (channel) => {
-  if (channel.parentId === CATEGORY_ID) {
-    renameChannel(channel);
-  }
-});
-
-// ==== Auto add role khi có tin nhắn đầu ====
-client.on("messageCreate", async (message) => {
-  if (message.author.bot) return;
-
-  const channel = message.channel;
   if (channel.parentId !== CATEGORY_ID) return;
 
-  // Lấy user và add role
-  const member = await message.guild.members.fetch(message.author.id);
-  if (member && !member.roles.cache.has(ROLE_ID)) {
-    try {
-      await member.roles.add(ROLE_ID);
-      console.log(`✅ Đã add role cho ${member.user.tag}`);
-    } catch (err) {
-      console.error(`❌ Lỗi add role cho ${member.user.tag}:`, err);
+  await renameChannel(channel);
+
+  // Check topic để lấy User ID
+  if (channel.topic) {
+    const match = channel.topic.match(/ID:\s*(\d{17,19})/);
+    if (match) {
+      const userId = match[1];
+      try {
+        const member = await channel.guild.members.fetch(userId);
+        if (member) {
+          await member.roles.add(ROLE_ID);
+          console.log(`✅ Đã add role cho ${member.user.tag} từ channel ${channel.name}`);
+        }
+      } catch (err) {
+        console.error("❌ Không thể add role:", err);
+      }
+    } else {
+      console.log("❌ Không tìm thấy User ID trong channel.topic");
     }
   }
 });
