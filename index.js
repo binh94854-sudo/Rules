@@ -13,7 +13,7 @@ const rules = require("./rules"); // import rules object
 
 // ==== CONFIG ====
 const TOKEN = process.env.TOKEN;
-const CATEGORY_ID = process.env.CATEGORY_ID;
+const CATEGORY_ID = process.env.CATEGORY_ID.trim(); // chắc chắn là string
 const RULES_CHANNEL_ID = process.env.RULES_CHANNEL_ID;
 const ROLE_ID = process.env.ROLE_ID;
 const PORT = process.env.PORT || 3000;
@@ -86,29 +86,54 @@ client.once("ready", async () => {
   }
 });
 
-// ==== Channel Create ====
+// ==== Channel Create + Auto Add Role ====
 client.on("channelCreate", async (channel) => {
   if (channel.parentId !== CATEGORY_ID) return;
 
   await renameChannel(channel);
 
-  // Check topic để lấy User ID
-  if (channel.topic) {
-    const match = channel.topic.match(/ID:\s*(\d{17,19})/);
-    if (match) {
-      const userId = match[1];
-      try {
-        const member = await channel.guild.members.fetch(userId);
-        if (member) {
-          await member.roles.add(ROLE_ID);
-          console.log(`✅ Đã add role cho ${member.user.tag} từ channel ${channel.name}`);
-        }
-      } catch (err) {
-        console.error("❌ Không thể add role:", err);
-      }
-    } else {
-      console.log("❌ Không tìm thấy User ID trong channel.topic");
+  // Kiểm tra topic
+  if (!channel.topic) {
+    console.log(`❌ Channel ${channel.name} không có topic, không thể add role.`);
+    return;
+  }
+
+  // Lấy userId là số cuối cùng trong topic
+  const match = channel.topic.match(/(\d{17,19})$/);
+  if (!match) {
+    console.log(`❌ Không tìm thấy User ID trong topic của channel ${channel.name}: "${channel.topic}"`);
+    return;
+  }
+
+  const userId = match[1];
+
+  try {
+    const member = await channel.guild.members.fetch(userId);
+    if (!member) {
+      console.log(`❌ Không tìm thấy member với ID: ${userId} trong server.`);
+      return;
     }
+
+    // Check role hierarchy
+    const botMember = await channel.guild.members.fetch(client.user.id);
+    const botRolePosition = botMember.roles.highest.position;
+    const targetRole = channel.guild.roles.cache.get(ROLE_ID);
+
+    if (!targetRole) {
+      console.log(`❌ Role ID ${ROLE_ID} không tồn tại.`);
+      return;
+    }
+
+    if (botRolePosition <= targetRole.position) {
+      console.log(`❌ Bot role thấp hơn hoặc bằng role cần add. Không thể add role ${targetRole.name} cho ${member.user.tag}`);
+      return;
+    }
+
+    await member.roles.add(targetRole);
+    console.log(`✅ Đã add role ${targetRole.name} cho ${member.user.tag} từ channel ${channel.name}`);
+
+  } catch (err) {
+    console.error(`❌ Lỗi khi add role cho userId ${userId}:`, err);
   }
 });
 
