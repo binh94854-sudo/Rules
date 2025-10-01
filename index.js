@@ -26,7 +26,7 @@ async function renameChannel(channel) {
   if (channel.parentId !== CATEGORY_ID) return;
   if (!channel.name.endsWith("-webhook")) return;
 
-  const username = channel.name.replace("-webhook", "");
+  const username = channel.name.replace("-webhook", ""); // giữ nguyên username
   const newName = `🛠★】${username}-macro`;
 
   if (channel.name !== newName) {
